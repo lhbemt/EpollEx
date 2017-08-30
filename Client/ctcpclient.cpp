@@ -58,10 +58,15 @@ bool CTCPClient::Connect(std::string strIP, int nPort)
     serverAddr.sin_port = htons(nPort);
 
     nRet = connect(m_sockfd, (sockaddr*)&serverAddr, sizeof(serverAddr));
-    if (nRet != EINPROGRESS) // not einprrogress is error
+    if (nRet == -1) // not einprrogress is error
     {
-        ErrorMsg("connect error, errorcode: %d, errormsg: %s", errno, strerror(errno));
-        return false;
+		if (errno == EINPROGRESS)
+			return true;
+		else
+		{
+			ErrorMsg("connect error, errorcode: %d, errormsg: %s", errno, strerror(errno));
+			return false;
+		}
     }
     return true;
 }

@@ -15,7 +15,7 @@ public:
 
     bool Connect(std::string strIP, int nPort);
     void DisConnect();
-    int  GetSockfd()
+    int  GetSockfd() const
     {
         return m_sockfd;
     }

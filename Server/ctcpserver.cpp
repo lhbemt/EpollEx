@@ -60,7 +60,7 @@ bool CTCPServer::Init(std::string& strIP, int nPort)
 {
     bool bRet = InitEpoll();
     if (!bRet)
-        return;
+        return false;
 
     m_listensockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (m_listensockfd < 0)
@@ -73,6 +73,7 @@ bool CTCPServer::Init(std::string& strIP, int nPort)
     fcntl(m_listensockfd, F_SETFL, fcntl(m_listensockfd, F_GETFL, 0) | O_NONBLOCK);
     // set reuse
     int nUse = 1;
+	int nRet = 0;
     nRet = setsockopt(m_listensockfd, SOL_SOCKET, SO_REUSEADDR, &nUse, sizeof(nUse));
     if (nRet < 0)
     {
@@ -83,7 +84,7 @@ bool CTCPServer::Init(std::string& strIP, int nPort)
 
     sockaddr_in serverAddr;
     memset(&serverAddr, 0, sizeof(serverAddr));
-    int nRet = inet_pton(AF_INET, strIP.c_str(), &serverAddr.sin_addr);
+    nRet = inet_pton(AF_INET, strIP.c_str(), &serverAddr.sin_addr);
     if (nRet != 1)
     {
         ErrorMsg("inet_pton error, errorcode: %d, errormsg: %s", errno, strerror(errno));
@@ -133,7 +134,7 @@ void CTCPServer::DoAccept()
                 return;
             else // accept error terminate thread
             {
-                write(STDERR_FILENO, 'c', 1);
+                write(STDERR_FILENO, "0", 1);
                 return;
             }
         }
@@ -149,6 +150,8 @@ void CTCPServer::DoAccept()
             {
                 int index = m_queueFree.front();
                 m_clients[index] = nConnfd;
+				// set nonblock
+				fcntl(nConnfd, F_SETFL, fcntl(nConnfd, F_GETFL, 0) | O_NONBLOCK);
                 AddfdToEpoll(nConnfd, true);
                 m_queueFree.pop();
                 m_mutexFree.unlock();
@@ -171,12 +174,12 @@ void CTCPServer::DoSocket(epoll_event *env)
             nRet = recv(env->data.fd, szBuff, sizeof(szBuff), 0);
             if (nRet == 0) // socket close
             {
-                close(env->data);
+                close(env->data.fd);
                 epoll_ctl(m_epollfd, EPOLL_CTL_DEL, env->data.fd, NULL); // remove
                 m_mutexFree.lock();
                 for (int i = 0; i < EVENT_NUM; ++i)
                 {
-                    if (m_clients[i] == env->data)
+                    if (m_clients[i] == env->data.fd)
                     {
                         m_queueFree.push(i); //free
                         m_clients[i] = -1;
@@ -225,7 +228,7 @@ bool CTCPServer::StartServer(std::string &strIP, int nPort)
 
     epoll_event envs[EVENT_NUM];
     int nRet = 0;
-    m_thEpoll = std::move(std::thread([=](){
+    m_thEpoll = std::move(std::thread([=, &envs, &nRet](){
         while(1)
         {
             nRet = epoll_wait(m_epollfd, envs, EVENT_NUM, -1);
@@ -259,5 +262,5 @@ bool CTCPServer::StartServer(std::string &strIP, int nPort)
 
 void CTCPServer::StopServer() // stop
 {
-    write(STDERR_FILENO, 'c', 1);
+    write(STDERR_FILENO, "0", 1);
 }

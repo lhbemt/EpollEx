@@ -19,7 +19,7 @@ int main(int argc, char* argv[])
         return 0;
     }
 
-    signal(SIGTERM, TermServer);
+    signal(SIGINT, TermServer);
 
     std::string strIp = argv[1];
     std::stringstream is;
