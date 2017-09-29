@@ -77,6 +77,7 @@ int main(int argc, char* argv[])
 				FD_ZERO(&r_set);
 				FD_SET(client.GetSockfd(), &r_set);
 				FD_SET(STDIN_FILENO, &r_set);
+				FD_SET(client.GetSockfd(), &r_set); //read from tcp
 				FD_SET(pipefd[0], &r_set); // terminate thread
 			}
 
